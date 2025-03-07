@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { io, Socket } from 'socket.io-client';
 import styled from 'styled-components';
-import { Cell, GameState, Ship, Room, Player, GamePhase, Country } from '../types/game';
+import { Cell, GameState, Ship, Room, Player, GamePhase, Country, Message } from '../types/game';
 import Board from './Board';
 import ShipPlacement from './ShipPlacement';
 import BattlePhase from './BattlePhase';
 import WaitingRoom from './WaitingRoom';
+import Chat from './Chat';
 
 const GameContainer = styled.div`
   display: flex;
@@ -14,6 +15,7 @@ const GameContainer = styled.div`
   padding: 20px;
   background-color: #f0f8ff;
   min-height: 100vh;
+  position: relative;
 `;
 
 const BoardsContainer = styled.div`
@@ -350,6 +352,37 @@ const Game: React.FC = () => {
       });
     });
 
+    socket.on('newMessage', (message: Message) => {
+      console.log('New message received:', message);
+      setGameState(prev => {
+        if (!prev.room) return prev;
+        
+        const messages = prev.room.messages || [];
+        return {
+          ...prev,
+          room: {
+            ...prev.room,
+            messages: [...messages, message]
+          }
+        };
+      });
+    });
+
+    socket.on('messageHistory', (messages: Message[]) => {
+      console.log('Message history received:', messages);
+      setGameState(prev => {
+        if (!prev.room) return prev;
+        
+        return {
+          ...prev,
+          room: {
+            ...prev.room,
+            messages
+          }
+        };
+      });
+    });
+
     return () => {
       socket.off('gameCreated');
       socket.off('playerJoined');
@@ -359,6 +392,8 @@ const Game: React.FC = () => {
       socket.off('moveResult');
       socket.off('playerDisconnected');
       socket.off('countrySelected');
+      socket.off('newMessage');
+      socket.off('messageHistory');
     };
   }, [socket, gameState.room]);
 
@@ -545,6 +580,13 @@ const Game: React.FC = () => {
     <GameContainer>
       <h1>Battleship Game</h1>
       {renderPhase()}
+      {gameState.room && socket && (
+        <Chat 
+          socket={socket} 
+          room={gameState.room} 
+          isCurrentPlayer={!!gameState.currentPlayer}
+        />
+      )}
     </GameContainer>
   );
 };

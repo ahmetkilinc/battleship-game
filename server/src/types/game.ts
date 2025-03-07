@@ -19,6 +19,14 @@ export interface Ship {
   placed: boolean;
 }
 
+export interface Message {
+  id: string;
+  playerId: string;
+  playerName: string;
+  text: string;
+  timestamp: number;
+}
+
 export interface Player {
   id: string;
   name: string;
@@ -34,6 +42,7 @@ export interface Room {
   players: Player[];
   currentTurn: string | null;
   winner: string | null;
+  messages: Message[];
 }
 
 export interface GameState {

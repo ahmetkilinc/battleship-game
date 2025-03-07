@@ -2,7 +2,7 @@ import express from 'express';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
 import cors from 'cors';
-import { Room, Player, GameState, Cell, GamePhase, Country } from './types/game';
+import { Room, Player, GameState, Cell, GamePhase, Country, Message } from './types/game';
 
 const app = express();
 const httpServer = createServer(app);
@@ -103,7 +103,8 @@ io.on('connection', (socket) => {
       phase: 'WAITING_FOR_PLAYERS',
       players: [newPlayer],
       currentTurn: null,
-      winner: null
+      winner: null,
+      messages: []
     };
     
     gameState.rooms.set(roomId, newRoom);
@@ -268,6 +269,43 @@ io.on('connection', (socket) => {
           country: data.country
         });
       }
+    }
+  });
+
+  socket.on('sendMessage', (data: { roomId: string, text: string }) => {
+    console.log('Message received:', { 
+      playerId: socket.id,
+      text: data.text 
+    });
+
+    const room = gameState.rooms.get(data.roomId);
+    if (room) {
+      const player = room.players.find(p => p.id === socket.id);
+      if (player) {
+        const message: Message = {
+          id: Math.random().toString(36).substring(2, 15),
+          playerId: socket.id,
+          playerName: player.country ? `${player.country.name} Fleet` : player.name,
+          text: data.text,
+          timestamp: Date.now()
+        };
+        
+        room.messages.push(message);
+        
+        // Limit messages to last 100
+        if (room.messages.length > 100) {
+          room.messages = room.messages.slice(-100);
+        }
+        
+        io.to(room.id).emit('newMessage', message);
+      }
+    }
+  });
+
+  socket.on('getMessages', (roomId: string) => {
+    const room = gameState.rooms.get(roomId);
+    if (room) {
+      socket.emit('messageHistory', room.messages);
     }
   });
 
