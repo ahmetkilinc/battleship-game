@@ -511,6 +511,7 @@ const Game: React.FC = () => {
               ships={ships}
               onComplete={handleShipPlacementComplete}
               disabled={currentPlayerReady}
+              country={gameState.currentPlayer?.country}
             />
           </>
         );

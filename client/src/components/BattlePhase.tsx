@@ -19,6 +19,11 @@ const BoardsContainer = styled.div`
   display: flex;
   gap: 60px;
   align-items: flex-start;
+  
+  @media (max-width: 768px) {
+    flex-direction: column;
+    gap: 40px;
+  }
 `;
 
 const BoardSection = styled.div`
@@ -42,6 +47,13 @@ const TurnIndicator = styled.div<{ isCurrentTurn: boolean }>`
   margin-bottom: 20px;
 `;
 
+const PlayerInfo = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+`;
+
 const BattlePhase: React.FC<BattlePhaseProps> = ({ gameState, onCellClick }) => {
   const isCurrentTurn = gameState.room?.currentTurn === gameState.currentPlayer?.id;
 
@@ -53,7 +65,7 @@ const BattlePhase: React.FC<BattlePhaseProps> = ({ gameState, onCellClick }) => 
 
       <BoardsContainer>
         <BoardSection>
-          <h2>Your Board</h2>
+          <h2>Your Fleet</h2>
           <ScoreDisplay>
             Score: {gameState.currentPlayer?.score || 0}
           </ScoreDisplay>
@@ -61,11 +73,12 @@ const BattlePhase: React.FC<BattlePhaseProps> = ({ gameState, onCellClick }) => 
             board={gameState.currentPlayer?.board || []}
             isOpponentBoard={false}
             onCellClick={() => {}} // Disable clicks on own board
+            country={gameState.currentPlayer?.country}
           />
         </BoardSection>
 
         <BoardSection>
-          <h2>Opponent's Board</h2>
+          <h2>Enemy Fleet</h2>
           <ScoreDisplay>
             Score: {gameState.opponent?.score || 0}
           </ScoreDisplay>
@@ -73,6 +86,7 @@ const BattlePhase: React.FC<BattlePhaseProps> = ({ gameState, onCellClick }) => 
             board={gameState.opponent?.board || []}
             isOpponentBoard={true}
             onCellClick={(x, y) => onCellClick(x, y, true)}
+            country={gameState.opponent?.country}
           />
         </BoardSection>
       </BoardsContainer>
