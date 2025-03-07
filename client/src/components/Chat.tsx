@@ -19,6 +19,10 @@ const ChatContainer = styled.div`
   overflow: hidden;
   background-color: white;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 1000;
 `;
 
 const ChatHeader = styled.div`
@@ -101,16 +105,16 @@ const SendButton = styled.button`
   }
 `;
 
-const ChatToggleButton = styled.button`
+const ChatToggleButton = styled.button<{ hasUnread: boolean }>`
   position: fixed;
   bottom: 20px;
   right: 20px;
-  background-color: #3498db;
+  background-color: ${({ hasUnread }) => hasUnread ? '#e74c3c' : '#3498db'};
   color: white;
   border: none;
   border-radius: 50%;
-  width: 50px;
-  height: 50px;
+  width: 60px;
+  height: 60px;
   font-size: 24px;
   display: flex;
   align-items: center;
@@ -118,9 +122,44 @@ const ChatToggleButton = styled.button`
   cursor: pointer;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
   z-index: 1000;
+  transition: background-color 0.3s ease, transform 0.2s ease;
+  
   &:hover {
-    background-color: #2980b9;
+    background-color: ${({ hasUnread }) => hasUnread ? '#c0392b' : '#2980b9'};
+    transform: scale(1.05);
   }
+  
+  ${({ hasUnread }) => hasUnread && `
+    animation: pulse 1.5s infinite;
+    
+    @keyframes pulse {
+      0% {
+        box-shadow: 0 0 0 0 rgba(231, 76, 60, 0.7);
+      }
+      70% {
+        box-shadow: 0 0 0 10px rgba(231, 76, 60, 0);
+      }
+      100% {
+        box-shadow: 0 0 0 0 rgba(231, 76, 60, 0);
+      }
+    }
+  `}
+`;
+
+const UnreadBadge = styled.div`
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  background-color: #e74c3c;
+  color: white;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid white;
 `;
 
 const formatTime = (timestamp: number): string => {
@@ -132,7 +171,9 @@ const Chat: React.FC<ChatProps> = ({ socket, room, isCurrentPlayer }) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [isOpen, setIsOpen] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const lastMessageTimestampRef = useRef<number>(0);
 
   useEffect(() => {
     if (!socket || !room) return;
@@ -143,11 +184,19 @@ const Chat: React.FC<ChatProps> = ({ socket, room, isCurrentPlayer }) => {
     // Listen for message history
     const handleMessageHistory = (messageHistory: Message[]) => {
       setMessages(messageHistory);
+      if (messageHistory.length > 0) {
+        lastMessageTimestampRef.current = messageHistory[messageHistory.length - 1].timestamp;
+      }
     };
 
     // Listen for new messages
     const handleNewMessage = (message: Message) => {
       setMessages(prev => [...prev, message]);
+      
+      // If chat is closed and message is not from current player, increment unread count
+      if (!isOpen && message.playerId !== socket.id) {
+        setUnreadCount(prev => prev + 1);
+      }
     };
 
     socket.on('messageHistory', handleMessageHistory);
@@ -157,7 +206,7 @@ const Chat: React.FC<ChatProps> = ({ socket, room, isCurrentPlayer }) => {
       socket.off('messageHistory', handleMessageHistory);
       socket.off('newMessage', handleNewMessage);
     };
-  }, [socket, room]);
+  }, [socket, room, isOpen]);
 
   // Scroll to bottom when messages change
   useEffect(() => {
@@ -178,52 +227,52 @@ const Chat: React.FC<ChatProps> = ({ socket, room, isCurrentPlayer }) => {
 
   const toggleChat = () => {
     setIsOpen(!isOpen);
+    if (!isOpen) {
+      // Reset unread count when opening chat
+      setUnreadCount(0);
+    }
   };
 
   if (!isOpen) {
     return (
-      <ChatToggleButton onClick={toggleChat}>
+      <ChatToggleButton onClick={toggleChat} hasUnread={unreadCount > 0}>
         💬
+        {unreadCount > 0 && <UnreadBadge>{unreadCount > 99 ? '99+' : unreadCount}</UnreadBadge>}
       </ChatToggleButton>
     );
   }
 
   return (
-    <>
-      <ChatToggleButton onClick={toggleChat} style={{ display: 'none' }}>
-        💬
-      </ChatToggleButton>
-      <ChatContainer>
-        <ChatHeader>
-          <span>Chat</span>
-          <CloseButton onClick={toggleChat}>✕</CloseButton>
-        </ChatHeader>
-        <MessagesContainer>
-          {messages.map(message => (
-            <div key={message.id}>
-              <MessageInfo>
-                {message.playerName} • {formatTime(message.timestamp)}
-              </MessageInfo>
-              <MessageBubble isCurrentPlayer={message.playerId === socket?.id}>
-                {message.text}
-              </MessageBubble>
-            </div>
-          ))}
-          <div ref={messagesEndRef} />
-        </MessagesContainer>
-        <InputContainer onSubmit={handleSubmit}>
-          <Input
-            type="text"
-            placeholder="Type a message..."
-            value={newMessage}
-            onChange={(e) => setNewMessage(e.target.value)}
-          />
-          <SendButton type="submit" disabled={!newMessage.trim()}>
-            Send
-          </SendButton>
-        </InputContainer>
-      </ChatContainer>
-    </>
+    <ChatContainer>
+      <ChatHeader>
+        <span>Chat</span>
+        <CloseButton onClick={toggleChat}>✕</CloseButton>
+      </ChatHeader>
+      <MessagesContainer>
+        {messages.map(message => (
+          <div key={message.id}>
+            <MessageInfo>
+              {message.playerName} • {formatTime(message.timestamp)}
+            </MessageInfo>
+            <MessageBubble isCurrentPlayer={message.playerId === socket?.id}>
+              {message.text}
+            </MessageBubble>
+          </div>
+        ))}
+        <div ref={messagesEndRef} />
+      </MessagesContainer>
+      <InputContainer onSubmit={handleSubmit}>
+        <Input
+          type="text"
+          placeholder="Type a message..."
+          value={newMessage}
+          onChange={(e) => setNewMessage(e.target.value)}
+        />
+        <SendButton type="submit" disabled={!newMessage.trim()}>
+          Send
+        </SendButton>
+      </InputContainer>
+    </ChatContainer>
   );
 };
 

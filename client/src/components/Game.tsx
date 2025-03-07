@@ -577,9 +577,11 @@ const Game: React.FC = () => {
   };
 
   return (
-    <GameContainer>
-      <h1>Battleship Game</h1>
-      {renderPhase()}
+    <>
+      <GameContainer>
+        <h1>Battleship Game</h1>
+        {renderPhase()}
+      </GameContainer>
       {gameState.room && socket && (
         <Chat 
           socket={socket} 
@@ -587,7 +589,7 @@ const Game: React.FC = () => {
           isCurrentPlayer={!!gameState.currentPlayer}
         />
       )}
-    </GameContainer>
+    </>
   );
 };
 
